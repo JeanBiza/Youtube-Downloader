@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from PIL import ImageTk
+import tkinter.messagebox as msgbox
 import threading
 import downloader
 
@@ -32,11 +33,11 @@ def update_ui(title, image):
     thumbnail_label.configure(image=ctk_image, text="")
     thumbnail_label.image = ctk_image
 
-
 def on_download():
     url = url_entry.get()
     formato = format_combobox.get()
     destination = folder_path.get()
+    calidad = quality_combobox.get()
 
     error_label.configure(text="")
     result_label.configure(text="")
@@ -51,19 +52,23 @@ def on_download():
         error_label.configure(text="Please select a destination folder", text_color="red")
         return
 
+    download_playlist = False
+    if downloader.is_playlist_url(url):
+        download_playlist = msgbox.askyesno(
+            "Playlist detected",
+            "This URL contains a playlist. Download the entire playlist?"
+        )
+
     progress_bar.pack(padx=20, pady=10)
     progress_bar.set(0)
     result_label.configure(text="Downloading...", text_color="gray")
     download_button.configure(state="disabled")
 
-    calidad = quality_combobox.get()
-
     threading.Thread(
         target=downloader.download_video,
-        args=(url, formato, destination, on_progress, on_finish, on_error, calidad),
+        args=(url, formato, destination, on_progress, on_finish, on_error, calidad, download_playlist),
         daemon=True
     ).start()
-
 
 def on_progress(progress, speed_str):
     root.after(0, lambda: progress_bar.set(progress / 100))

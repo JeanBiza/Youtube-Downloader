@@ -17,6 +17,8 @@ def is_valid_youtube_url(url: str) -> bool:
 def get_downloads_folder() -> str:
     return os.path.join(os.path.expanduser("~"), "Downloads")
 
+def is_playlist_url(url: str) -> bool:
+    return 'list=' in url
 
 def fetch_video_info(url: str) -> dict:
     opts = {
@@ -37,7 +39,7 @@ def fetch_thumbnail(video_id: str) -> Image.Image:
     return image.resize((480, 270))
 
 
-def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error, calidad: str = "best"):
+def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error, calidad: str = "best", download_playlist: bool = False):
     def progress_hook(d):
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
@@ -48,6 +50,19 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
         if d['status'] == 'finished':
             on_finish()
 
+    common_opts = {
+        'progress_hooks': [progress_hook],
+        'noplaylist': not download_playlist,
+        'yes_playlist': download_playlist,
+        'overwrites': True,
+    }
+
+    if not download_playlist:
+        common_opts['extractor_args'] = {'youtube': {'player_client': ['tv_embedded']}}
+
+        
+    outtmpl = f'{destination_folder}/%(playlist_title)s/%(title)s.%(ext)s' if download_playlist else f'{destination_folder}/%(title)s.%(ext)s'
+
     if formato.lower() == "mp4":
         if calidad == "best":
             format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best'
@@ -56,37 +71,25 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
             format_str = f'bestvideo[ext=mp4][height<={height}]+bestaudio[ext=m4a]/best[height<={height}]'
 
         options = {
+            **common_opts,
             'format': format_str,
-            'outtmpl': f'{destination_folder}/%(title)s.%(ext)s',
+            'outtmpl': outtmpl,
             'merge_output_format': 'mp4',
-            'progress_hooks': [progress_hook],
-            'noplaylist': True,
-            'overwrites': True,
-            'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
         }
     elif formato.lower() == "mp3":
         options = {
+            **common_opts,
             'format': 'bestaudio/best',
-            'outtmpl': f'{destination_folder}/%(title)s.%(ext)s',
+            'outtmpl': outtmpl,
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'progress_hooks': [progress_hook],
-            'noplaylist': True,
-            'overwrites': True,
-            'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
         }
     else:
         on_error(f"Unsupported format: {formato}")
         return
-
-    try:
-        with YoutubeDL(options) as ydl:
-            ydl.download([url])
-    except Exception as e:
-        on_error(str(e))
 
     try:
         with YoutubeDL(options) as ydl:
