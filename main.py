@@ -56,9 +56,11 @@ def on_download():
     result_label.configure(text="Downloading...", text_color="gray")
     download_button.configure(state="disabled")
 
+    calidad = quality_combobox.get()
+
     threading.Thread(
         target=downloader.download_video,
-        args=(url, formato, destination, on_progress, on_finish, on_error),
+        args=(url, formato, destination, on_progress, on_finish, on_error, calidad),
         daemon=True
     ).start()
 
@@ -110,7 +112,7 @@ def center_window(window):
     window.geometry(f"{w}x{h}+{x}+{y}")
 
 
-# --- UI ---
+#  UI
 root = ctk.CTk()
 root.title("YouTube Downloader")
 root.geometry("520x720")
@@ -139,6 +141,13 @@ format_label.pack(pady=(10, 2))
 format_combobox = ctk.CTkComboBox(root, values=["MP4", "MP3"], state="readonly", width=200)
 format_combobox.set("MP4")
 format_combobox.pack(pady=5)
+
+quality_label = ctk.CTkLabel(root, text="Quality (MP4 only):")
+quality_label.pack(pady=(10, 2))
+
+quality_combobox = ctk.CTkComboBox(root, values=["best", "1080p", "720p", "480p", "360p"], state="readonly", width=200)
+quality_combobox.set("best")
+quality_combobox.pack(pady=5)
 
 folder_button = ctk.CTkButton(root, text="Select destination folder", command=choose_folder)
 folder_button.pack(pady=5)

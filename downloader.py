@@ -37,7 +37,7 @@ def fetch_thumbnail(video_id: str) -> Image.Image:
     return image.resize((480, 270))
 
 
-def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error):
+def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error, calidad: str = "best"):
     def progress_hook(d):
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
@@ -47,8 +47,14 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
             on_finish()
 
     if formato.lower() == "mp4":
+        if calidad == "best":
+            format_str = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best'
+        else:
+            height = calidad.replace("p", "")
+            format_str = f'bestvideo[ext=mp4][height<={height}]+bestaudio[ext=m4a]/best[height<={height}]'
+
         options = {
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
+            'format': format_str,
             'outtmpl': f'{destination_folder}/%(title)s.%(ext)s',
             'merge_output_format': 'mp4',
             'progress_hooks': [progress_hook],
@@ -73,6 +79,12 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
     else:
         on_error(f"Unsupported format: {formato}")
         return
+
+    try:
+        with YoutubeDL(options) as ydl:
+            ydl.download([url])
+    except Exception as e:
+        on_error(str(e))
 
     try:
         with YoutubeDL(options) as ydl:
