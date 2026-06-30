@@ -19,13 +19,16 @@ def get_downloads_folder() -> str:
 
 
 def fetch_video_info(url: str) -> dict:
-    with YoutubeDL({'quiet': True}) as ydl:
+    opts = {
+        'quiet': True,
+        'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
+    }
+    with YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
         return {
             'title': info.get('title', 'Title not available'),
             'video_id': re.search(r"(v=|youtu\.be/)([a-zA-Z0-9_-]+)", url).group(2)
         }
-
 
 def fetch_thumbnail(video_id: str) -> Image.Image:
     thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
@@ -51,6 +54,7 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
             'progress_hooks': [progress_hook],
             'noplaylist': True,
             'overwrites': True,
+            'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
         }
     elif formato.lower() == "mp3":
         options = {
@@ -64,6 +68,7 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
             'progress_hooks': [progress_hook],
             'noplaylist': True,
             'overwrites': True,
+            'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
         }
     else:
         on_error(f"Unsupported format: {formato}")

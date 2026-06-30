@@ -1,17 +1,19 @@
-import tkinter as tk
-from tkinter import ttk, filedialog
+import customtkinter as ctk
 from PIL import ImageTk
 import threading
 import downloader
+
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
 
 
 def display_thumbnail(event=None):
     url = url_entry.get()
     if not downloader.is_valid_youtube_url(url):
-        preview_label.config(text="Invalid URL", fg="red", font=("Helvetica", 14))
-        thumbnail_label.config(image="", text="", width=10, height=10)
+        preview_label.configure(text="Invalid URL", text_color="red")
+        thumbnail_label.configure(image="", text="")
         return
-    preview_label.config(text="Loading preview...", fg="black", font=("Helvetica", 14))
+    preview_label.configure(text="Loading preview...", text_color="gray")
     threading.Thread(target=load_video_info, args=(url,), daemon=True).start()
 
 
@@ -20,16 +22,15 @@ def load_video_info(url):
         info = downloader.fetch_video_info(url)
         image = downloader.fetch_thumbnail(info['video_id'])
         root.after(0, update_ui, info['title'], image)
-    except Exception as e:
-        root.after(0, preview_label.config, {"text": "Error loading preview", "fg": "red"})
+    except Exception:
+        root.after(0, lambda: preview_label.configure(text="Error loading preview", text_color="red"))
 
 
 def update_ui(title, image):
-    preview_label.config(text=title, fg="black", font=("Helvetica", 9))
-    thumbnail_image = ImageTk.PhotoImage(image)
-    thumbnail_label.config(image=thumbnail_image, text="", bg="white", width=500, height=200)
-    thumbnail_label.image = thumbnail_image
-    thumbnail_label.pack(padx=10, pady=5)
+    preview_label.configure(text=title, text_color="white")
+    ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=(480, 270))
+    thumbnail_label.configure(image=ctk_image, text="")
+    thumbnail_label.image = ctk_image
 
 
 def on_download():
@@ -37,22 +38,23 @@ def on_download():
     formato = format_combobox.get()
     destination = folder_path.get()
 
-    error_label.config(text="")
-    result_label.config(text="")
+    error_label.configure(text="")
+    result_label.configure(text="")
 
     if not url:
-        error_label.config(text="Please enter a URL", fg="red")
+        error_label.configure(text="Please enter a URL", text_color="red")
         return
     if not downloader.is_valid_youtube_url(url):
-        error_label.config(text="Please enter a valid YouTube URL", fg="red")
+        error_label.configure(text="Please enter a valid YouTube URL", text_color="red")
         return
     if not destination:
-        error_label.config(text="Please select a destination folder", fg="red")
+        error_label.configure(text="Please select a destination folder", text_color="red")
         return
 
-    progress_bar.pack(padx=10, pady=10)
-    progress_bar['value'] = 0
-    result_label.config(text="Downloading...")
+    progress_bar.pack(padx=20, pady=10)
+    progress_bar.set(0)
+    result_label.configure(text="Downloading...", text_color="gray")
+    download_button.configure(state="disabled")
 
     threading.Thread(
         target=downloader.download_video,
@@ -62,7 +64,7 @@ def on_download():
 
 
 def on_progress(progress):
-    root.after(0, lambda: progress_bar.config(value=progress))
+    root.after(0, lambda: progress_bar.set(progress / 100))
 
 
 def on_finish():
@@ -70,29 +72,33 @@ def on_finish():
 
 
 def _finish_ui():
-    progress_bar['value'] = 100
+    progress_bar.set(1)
     progress_bar.pack_forget()
-    result_label.config(text="Download complete!", fg="green")
-    url_entry.delete(0, tk.END)
-    preview_label.config(text="Preview", fg="black")
-    thumbnail_label.config(image="", text="", width=10, height=10)
+    result_label.configure(text="Download complete!", text_color="green")
+    download_button.configure(state="normal")
+    url_entry.delete(0, ctk.END)
+    preview_label.configure(text="Preview")
+    thumbnail_label.configure(image="", text="")
 
 
 def on_error(message):
-    root.after(0, lambda: result_label.config(text=f"Error: {message}", fg="red"))
+    root.after(0, lambda: result_label.configure(text=f"Error: {message}", text_color="red"))
     root.after(0, progress_bar.pack_forget)
+    root.after(0, lambda: download_button.configure(state="normal"))
 
 
 def choose_folder():
-    folder = filedialog.askdirectory()
+    import tkinter.filedialog as fd
+    folder = fd.askdirectory()
     if folder:
         folder_path.set(folder)
+        folder_label.configure(text=folder)
 
 
 def clear_url():
-    url_entry.delete(0, tk.END)
-    preview_label.config(text="Preview", fg="black")
-    thumbnail_label.config(image="", text="", width=10, height=10)
+    url_entry.delete(0, ctk.END)
+    preview_label.configure(text="Preview", text_color="white")
+    thumbnail_label.configure(image="", text="")
 
 
 def center_window(window):
@@ -105,58 +111,59 @@ def center_window(window):
 
 
 # --- UI ---
-root = tk.Tk()
+root = ctk.CTk()
 root.title("YouTube Downloader")
-root.geometry("400x600")
+root.geometry("520x720")
 root.resizable(False, False)
 
-url_label = tk.Label(root, text="Enter video URL:")
-url_label.pack(padx=10, pady=5)
+title_label = ctk.CTkLabel(root, text="YouTube Downloader", font=ctk.CTkFont(size=20, weight="bold"))
+title_label.pack(pady=(20, 10))
 
-url_entry_frame = tk.Frame(root)
-url_entry_frame.pack(padx=10, pady=5)
+url_frame = ctk.CTkFrame(root, fg_color="transparent")
+url_frame.pack(padx=20, pady=5, fill="x")
 
-url_entry = tk.Entry(url_entry_frame, width=40)
-url_entry.pack(side=tk.LEFT, padx=5)
+url_entry = ctk.CTkEntry(url_frame, placeholder_text="Enter YouTube URL...", width=380)
+url_entry.pack(side="left", padx=(0, 5))
 url_entry.bind("<FocusOut>", display_thumbnail)
 url_entry.bind("<Return>", display_thumbnail)
 
-clear_button = tk.Button(url_entry_frame, text="Clear", command=clear_url)
-clear_button.pack(side=tk.LEFT)
+clear_button = ctk.CTkButton(url_frame, text="Clear", width=70, command=clear_url)
+clear_button.pack(side="left")
 
-error_label = tk.Label(root, text="", fg="red")
-error_label.pack(padx=10, pady=5)
+error_label = ctk.CTkLabel(root, text="", text_color="red")
+error_label.pack(pady=2)
 
-format_label = tk.Label(root, text="Choose format:")
-format_label.pack(padx=10, pady=5)
+format_label = ctk.CTkLabel(root, text="Format:")
+format_label.pack(pady=(10, 2))
 
-format_combobox = ttk.Combobox(root, values=["MP4", "MP3"], state="readonly")
+format_combobox = ctk.CTkComboBox(root, values=["MP4", "MP3"], state="readonly", width=200)
 format_combobox.set("MP4")
-format_combobox.pack(padx=10, pady=5)
+format_combobox.pack(pady=5)
 
-folder_path = tk.StringVar()
+folder_button = ctk.CTkButton(root, text="Select destination folder", command=choose_folder)
+folder_button.pack(pady=5)
+
+folder_path = ctk.StringVar()
 folder_path.set(downloader.get_downloads_folder())
 
-folder_button = tk.Button(root, text="Select destination folder", command=choose_folder)
-folder_button.pack(padx=10, pady=5)
+folder_label = ctk.CTkLabel(root, text=downloader.get_downloads_folder(), text_color="gray", wraplength=460)
+folder_label.pack(pady=2)
 
-folder_label = tk.Label(root, textvariable=folder_path)
-folder_label.pack(padx=10, pady=5)
+download_button = ctk.CTkButton(root, text="Download", command=on_download, width=200, height=40,
+                                font=ctk.CTkFont(size=14, weight="bold"))
+download_button.pack(pady=20)
 
-download_button = tk.Button(root, text="Download", command=on_download)
-download_button.pack(padx=10, pady=20)
+result_label = ctk.CTkLabel(root, text="", font=ctk.CTkFont(size=13))
+result_label.pack(pady=5)
 
-result_label = tk.Label(root, text="", font=("Helvetica", 14))
-result_label.pack(padx=10, pady=5)
-
-progress_bar = ttk.Progressbar(root, length=300, mode='determinate', maximum=100)
+progress_bar = ctk.CTkProgressBar(root, width=460)
 progress_bar.pack_forget()
 
-preview_label = tk.Label(root, text="Preview")
-preview_label.pack(fill="both", expand=True)
+preview_label = ctk.CTkLabel(root, text="Preview", text_color="gray")
+preview_label.pack(pady=(10, 5))
 
-thumbnail_label = tk.Label(root, text="", width=1, height=1)
-thumbnail_label.pack_forget()
+thumbnail_label = ctk.CTkLabel(root, text="")
+thumbnail_label.pack()
 
 if __name__ == "__main__":
     center_window(root)
