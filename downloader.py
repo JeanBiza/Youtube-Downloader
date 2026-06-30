@@ -42,7 +42,9 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
             progress = d.get('downloaded_bytes', 0) / total * 100
-            on_progress(progress)
+            speed = d.get('speed')
+            speed_str = f"{speed / 1024 / 1024:.1f} MB/s" if speed else "..."
+            on_progress(progress, speed_str)
         if d['status'] == 'finished':
             on_finish()
 

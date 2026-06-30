@@ -65,9 +65,9 @@ def on_download():
     ).start()
 
 
-def on_progress(progress):
+def on_progress(progress, speed_str):
     root.after(0, lambda: progress_bar.set(progress / 100))
-
+    root.after(0, lambda: result_label.configure(text=f"Downloading... {progress:.0f}% ({speed_str})"))
 
 def on_finish():
     root.after(0, _finish_ui)
