@@ -1,4 +1,5 @@
 from yt_dlp import YoutubeDL
+import yt_dlp
 from urllib.request import urlopen
 from PIL import Image
 import io
@@ -7,14 +8,12 @@ import os
 import database
 import datetime
 
-
 def is_valid_youtube_url(url: str) -> bool:
     if 'youtube.com' in url or 'youtu.be' in url:
         video_id_pattern = r'(v=|youtu\.be/)[a-zA-Z0-9_-]+'
         if re.search(video_id_pattern, url):
             return True
     return False
-
 
 def get_downloads_folder() -> str:
     return os.path.join(os.path.expanduser("~"), "Downloads")
@@ -27,12 +26,18 @@ def fetch_video_info(url: str) -> dict:
         'quiet': True,
         'extractor_args': {'youtube': {'player_client': ['tv_embedded']}},
     }
-    with YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return {
-            'title': info.get('title', 'Title not available'),
-            'video_id': re.search(r"(v=|youtu\.be/)([a-zA-Z0-9_-]+)", url).group(2)
-        }
+    try:
+        with YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            return {
+                'title': info.get('title', 'Title not available'),
+                'video_id': re.search(r"(v=|youtu\.be/)([a-zA-Z0-9_-]+)", url).group(2)
+            }
+    except yt_dlp.utils.DownloadError:
+        raise ValueError("Could not fetch video info. The video may be private or unavailable.")
+    except Exception:
+        raise ValueError("Unexpected error fetching video info.")
+
 
 def fetch_thumbnail(video_id: str) -> Image.Image:
     thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
@@ -43,6 +48,7 @@ def fetch_thumbnail(video_id: str) -> Image.Image:
 
 def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error, calidad: str = "best", download_playlist: bool = False):
     title_cache = {'value': url}
+
     def progress_hook(d):
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
@@ -67,7 +73,6 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
     if not download_playlist:
         common_opts['extractor_args'] = {'youtube': {'player_client': ['tv_embedded']}}
 
-        
     outtmpl = f'{destination_folder}/%(playlist_title)s/%(title)s.%(ext)s' if download_playlist else f'{destination_folder}/%(title)s.%(ext)s'
 
     if formato.lower() == "mp4":
@@ -101,5 +106,19 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
     try:
         with YoutubeDL(options) as ydl:
             ydl.download([url])
+    except yt_dlp.utils.DownloadError as e:
+        error = str(e)
+        if 'Requested format is not available' in error:
+            on_error("The selected quality is not available for this video. Try a lower quality.")
+        elif 'Private video' in error:
+            on_error("This video is private and cannot be downloaded.")
+        elif 'Video unavailable' in error:
+            on_error("This video is unavailable.")
+        elif 'confirm your age' in error:
+            on_error("This video requires age verification and cannot be downloaded.")
+        else:
+            on_error(f"Download error: {e}")
+    except yt_dlp.utils.ExtractorError as e:
+        on_error(f"Could not extract video info: {e}")
     except Exception as e:
-        on_error(str(e))
+        on_error(f"Unexpected error: {e}")
