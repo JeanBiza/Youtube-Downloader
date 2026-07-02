@@ -3,9 +3,11 @@ from PIL import ImageTk
 import tkinter.messagebox as msgbox
 import threading
 import downloader
+import database
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
 
 
 def display_thumbnail(event=None):
@@ -116,6 +118,35 @@ def center_window(window):
     y = (window.winfo_screenheight() // 2) - (h // 2) - 50
     window.geometry(f"{w}x{h}+{x}+{y}")
 
+def show_history():
+    rows = database.get_history()
+    
+    history_window = ctk.CTkToplevel(root)
+    history_window.title("Download History")
+    history_window.geometry("600x400")
+    history_window.resizable(False, False)
+
+    title_label_h = ctk.CTkLabel(history_window, text="Download History", font=ctk.CTkFont(size=16, weight="bold"))
+    title_label_h.pack(pady=(15, 10))
+
+    if not rows:
+        ctk.CTkLabel(history_window, text="No downloads yet.", text_color="gray").pack(pady=20)
+    else:
+        scroll_frame = ctk.CTkScrollableFrame(history_window, width=560, height=280)
+        scroll_frame.pack(padx=10, pady=5)
+
+        for title, url, formato, calidad, destination, timestamp in rows:
+            entry_frame = ctk.CTkFrame(scroll_frame)
+            entry_frame.pack(fill="x", padx=5, pady=4)
+
+            ctk.CTkLabel(entry_frame, text=f"🎵 {title}", font=ctk.CTkFont(weight="bold"), wraplength=500, anchor="w").pack(anchor="w", padx=10, pady=(5, 0))
+            ctk.CTkLabel(entry_frame, text=f"{timestamp}  •  {formato}  •  {calidad}", text_color="gray", anchor="w").pack(anchor="w", padx=10, pady=(0, 5))
+
+    clear_button_h = ctk.CTkButton(history_window, text="Clear History", fg_color="red", hover_color="#aa0000", command=lambda: [database.clear_history(), history_window.destroy()])
+    clear_button_h.pack(pady=10)
+
+
+database.init_db()
 
 #  UI
 root = ctk.CTk()
@@ -166,6 +197,10 @@ folder_label.pack(pady=2)
 download_button = ctk.CTkButton(root, text="Download", command=on_download, width=200, height=40,
                                 font=ctk.CTkFont(size=14, weight="bold"))
 download_button.pack(pady=20)
+
+history_button = ctk.CTkButton(root, text="History", width=200, fg_color="transparent", 
+                                border_width=1, command=show_history)
+history_button.pack(pady=(0, 10))
 
 result_label = ctk.CTkLabel(root, text="", font=ctk.CTkFont(size=13))
 result_label.pack(pady=5)

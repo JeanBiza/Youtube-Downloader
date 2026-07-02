@@ -4,6 +4,8 @@ from PIL import Image
 import io
 import re
 import os
+import database
+import datetime
 
 
 def is_valid_youtube_url(url: str) -> bool:
@@ -40,6 +42,7 @@ def fetch_thumbnail(video_id: str) -> Image.Image:
 
 
 def download_video(url: str, formato: str, destination_folder: str, on_progress, on_finish, on_error, calidad: str = "best", download_playlist: bool = False):
+    title_cache = {'value': url}
     def progress_hook(d):
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 1)
@@ -48,6 +51,10 @@ def download_video(url: str, formato: str, destination_folder: str, on_progress,
             speed_str = f"{speed / 1024 / 1024:.1f} MB/s" if speed else "..."
             on_progress(progress, speed_str)
         if d['status'] == 'finished':
+            info = d.get('info_dict', {})
+            title_cache['value'] = info.get('title', url)
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+            database.add_download(title_cache['value'], url, formato, calidad, destination_folder, timestamp)
             on_finish()
 
     common_opts = {
